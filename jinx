@@ -1265,7 +1265,7 @@ int main(int argc, char *argv[]) {
     printf("  %s\n", argv[1]);
 }
 EOF
-    cc -static -O2 -pipe -fno-strict-aliasing -Wall -Wextra "$JINX_CACHE_DIR/b2sum.c" -o "$JINX_CACHE_DIR/b2sum"
+    cc -O2 -pipe -fno-strict-aliasing -Wall -Wextra "$JINX_CACHE_DIR/b2sum.c" -o "$JINX_CACHE_DIR/b2sum"
 }
 
 rebuild_rbrt() {
@@ -1671,7 +1671,7 @@ cleanup:
     return ok;
 }
 EOF
-    cc -static -O2 -pipe -Wall -Wextra "$JINX_CACHE_DIR/rbrt.c" -o "$JINX_CACHE_DIR/rbrt"
+    cc -O2 -pipe -Wall -Wextra "$JINX_CACHE_DIR/rbrt.c" -o "$JINX_CACHE_DIR/rbrt"
 }
 
 reinit_container() {
