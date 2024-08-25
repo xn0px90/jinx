@@ -47,24 +47,40 @@ if ! [ "$(uname -s)" = "Linux" ]; then
     die "$0: Jinx only supports running on Linux hosts."
 fi
 
-debian_snapshot="20240824T022939Z"
+debian_snapshot="20240825T082807Z"
 
 case "$(uname -m)" in
     x86_64)
         debian_architecture=amd64
-        debian_rootfs_b2sum=720522a26eb6f1238e9b051ece09295def347cf089b6b3e21217c685505633e61edb242cbd3d8fe8bc41f52b43dd1fabe95a0a879973ffce7c6cfc7160babbc3
+        debian_rootfs_b2sum=85113cc924c517022f39fc27cf82244406184d565327497f3bd9af8ba43cf22536110854372557916d3d98f97a5a23cbb182896ae2ebb83b08405d8b4bc084c0
         ;;
     aarch64)
         debian_architecture=arm64
-        debian_rootfs_b2sum=142cbe51b901346a1e96310961432ea20888216bd6e9155787d989853d480f321d5926ca0be50bf3ddb74b53470ce79e3a29ac4b6e19a2fcdca7403cce08c718
+        debian_rootfs_b2sum=fab78a7c86a0aa6e01bda5957c10c3783628d8ffef5eb4da2ce5f6db91d916279c39739bdd043247c26c8b8d9e6f7cef5b93ae1792056324cfc48d2ec939cce4
+        ;;
+    arm*)
+        debian_architecture=armhf
+        debian_rootfs_b2sum=389c1e0e8129815bc97afe3cf2fa0f2023f215619f6828e868058efd0b17c2bfdc75cbabebf5ac08228340b43b37ca9b88a455246ae9ccf6f10f062ae4242aea
         ;;
     i?86)
         debian_architecture=i386
-        debian_rootfs_b2sum=f6a74d13e92f101c3b07031221c5d9ba2b802fa980811306b9866c58551dd89f1f14b896ec639faaeed98524b86eb44b5740e526b0c2610118cb894cb1f22462
+        debian_rootfs_b2sum=b0a9b4fd20c662ac82edbfb867010af7778097cb796770961e89164a1d70c596e1fa9ff03e431da89f314a1fd38c6cef6a9a491b2a3f3ee4067903c9e28bc260
+        ;;
+    mips64el)
+        debian_architecture=mips64el
+        debian_rootfs_b2sum=81eaa5571faa26bdfe3a62bb9f9511467f943a2d7413dbfa4dad9a0be2130ec6e4214f4e77d13fa9740ceb4f6f64e73e35fab54ce317a3417ed1d57b70172f0d
+        ;;
+    ppc64le)
+        debian_architecture=ppc64el
+        debian_rootfs_b2sum=2ea5b415e79995069611a68b9a7e3ec6affce4c7fda139233aaa6973e10b75140a6e2ce5f52386acc5ddbabac96a0c4c40815b77fe392b02855340538ed8eadc
         ;;
     riscv64)
         debian_architecture=riscv64
-        debian_rootfs_b2sum=0821e37cde326ea18103939cda0f6eda0844e364e50cef04bb20a6803fd11ab2d8e21b1a12ae388c6b5a2dbfed606472d36600deb995db191d2777680c3be881
+        debian_rootfs_b2sum=9377c7530ab1d45ca37a5bcfdc5aa9750025987256bb0a8d6ab3712621a151f975186f1aa59e81ecbbb9ef5da171e9475ef1fd03848a2e42111edbfbc956c94f
+        ;;
+    s390x)
+        debian_architecture=s390x
+        debian_rootfs_b2sum=9cdff0046193e773c7b707c28e8176994923938f258d2e3487e8b6f63cd42124e6f5166a1d88647bd411c2bc978fa426b093e3dbdcc7d094b94b0ddf6af54f2c
         ;;
     *)
         die "$0: Unsupported architecture: $(uname -m)"
