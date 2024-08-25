@@ -25,17 +25,6 @@
 
 set -e
 
-jinx_major_ver="0.2"
-jinx_minor_ver="31"
-
-jinx_version="${jinx_major_ver}.${jinx_minor_ver}"
-
-archlinux_snapshot_date="2024.08.01"
-archlinux_snapshot_b2sum=5ef11678ec6745ae61d74ed3223d1f69cc4413e9975a7bbd9c8e8c52acef1f1c20618db8a6786fe7cb7b3fc2b6471c279fa02f39430e087ea13abb0fb5d75bb0
-archlinux_snapshot_repo_date="2024/08/03"
-
-XSTOW_VERSION=1.1.1
-
 IFS=" ""	"'
 '
 
@@ -43,6 +32,11 @@ LC_COLLATE=C
 export LC_COLLATE
 
 umask 0022
+
+jinx_major_ver="0.3"
+jinx_minor_ver="0"
+
+jinx_version="${jinx_major_ver}.${jinx_minor_ver}"
 
 die() {
     echo "$1"
@@ -52,6 +46,32 @@ die() {
 if ! [ "$(uname -s)" = "Linux" ]; then
     die "$0: Jinx only supports running on Linux hosts."
 fi
+
+debian_snapshot="20240824T022939Z"
+
+case "$(uname -m)" in
+    x86_64)
+        debian_architecture=amd64
+        debian_rootfs_b2sum=720522a26eb6f1238e9b051ece09295def347cf089b6b3e21217c685505633e61edb242cbd3d8fe8bc41f52b43dd1fabe95a0a879973ffce7c6cfc7160babbc3
+        ;;
+    aarch64)
+        debian_architecture=arm64
+        debian_rootfs_b2sum=142cbe51b901346a1e96310961432ea20888216bd6e9155787d989853d480f321d5926ca0be50bf3ddb74b53470ce79e3a29ac4b6e19a2fcdca7403cce08c718
+        ;;
+    i?86)
+        debian_architecture=i386
+        debian_rootfs_b2sum=f6a74d13e92f101c3b07031221c5d9ba2b802fa980811306b9866c58551dd89f1f14b896ec639faaeed98524b86eb44b5740e526b0c2610118cb894cb1f22462
+        ;;
+    riscv64)
+        debian_architecture=riscv64
+        debian_rootfs_b2sum=0821e37cde326ea18103939cda0f6eda0844e364e50cef04bb20a6803fd11ab2d8e21b1a12ae388c6b5a2dbfed606472d36600deb995db191d2777680c3be881
+        ;;
+    *)
+        die "$0: Unsupported architecture: $(uname -m)"
+        ;;
+esac
+
+XSTOW_VERSION=1.1.1
 
 make_dir() {
     for d in "$@"; do
@@ -131,7 +151,7 @@ if [ "$in_container" = "false" ]; then
     make_dir "${base_dir}/sources" "${build_dir}/host-builds" "${build_dir}/host-pkgs" "${build_dir}/builds" "${build_dir}/pkgs"
 fi
 
-pacman_cache="$JINX_CACHE_DIR/pacman"
+apt_cache="$JINX_CACHE_DIR/apt-cache"
 
 temp_collect=""
 trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
@@ -236,11 +256,11 @@ run_in_container1() {
         --env HOME=/root \
         --env LANG=en_US.UTF-8 \
         --env LC_COLLATE=C \
-        --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
+        --env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin \
         --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
         ${run_in_cont1_term} \
         ${run_in_cont1_colorterm} \
-        -m"${pacman_cache}":/var/cache/pacman/pkg \
+        -m"${apt_cache}":/var/cache/apt/archives \
         -- \
         "$@"
 }
@@ -322,7 +342,7 @@ prepare_container() {
 
             rm -f "$JINX_CACHE_DIR/sets/${pkgset}.image/.jinx-set-valid"
 
-            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
+            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" apt-get install -y "${pkg}"; then
                 die 'Jinx error: Installing an imagedep failed.'
             fi
 
@@ -398,7 +418,7 @@ run_in_container() {
             --env HOME=/root \
             --env LANG=${run_in_cont_lang} \
             --env LC_COLLATE=C \
-            --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
+            --env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin \
             --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
             ${run_in_cont_term} \
             ${run_in_cont_colorterm} \
@@ -415,7 +435,7 @@ run_in_container() {
             ${unshare_net_flag} \
             --workdir / \
             -- \
-            /bin/sh -c "cd /build_dir && /jinx $run_in_cont_argvar"
+            /bin/bash -c "cd /build_dir && /bin/bash /jinx $run_in_cont_argvar"
     else
         "$JINX_CACHE_DIR/rbrt" \
             --root "${imgroot}" \
@@ -424,7 +444,7 @@ run_in_container() {
             --env HOME=/root \
             --env LANG=${run_in_cont_lang} \
             --env LC_COLLATE=C \
-            --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
+            --env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin \
             --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
             ${run_in_cont_term} \
             ${run_in_cont_colorterm} \
@@ -443,7 +463,7 @@ run_in_container() {
             ${unshare_net_flag} \
             --workdir / \
             -- \
-            /bin/sh -c "cd /build_dir && /jinx $run_in_cont_argvar"
+            /bin/bash -c "cd /build_dir && /bin/bash /jinx $run_in_cont_argvar"
     fi
 
     rm -rf "${imgroot}/sysroot" "${imgroot}/jinx" "${imgroot}/jinx-config" "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
@@ -1676,45 +1696,42 @@ EOF
 
 reinit_container() {
     chmod -R 777 "$JINX_CACHE_DIR/sets" 2>/dev/null || true
-    chmod -R 777 "$JINX_CACHE_DIR/pacman" 2>/dev/null || true
-    rm -rf "$JINX_CACHE_DIR/arch-root.tar.zst" "$JINX_CACHE_DIR/sets" "$JINX_CACHE_DIR/pacman"
+    chmod -R 777 "$JINX_CACHE_DIR/apt-cache" 2>/dev/null || true
+    rm -rf "$JINX_CACHE_DIR/debian-rootfs.tar.xz" "$JINX_CACHE_DIR/sets" "$JINX_CACHE_DIR/apt-cache"
 
-    make_dir "${pacman_cache}"
+    make_dir "${apt_cache}"
 
-    curl -L -o "$JINX_CACHE_DIR/arch-root.tar.zst" https://archive.archlinux.org/iso/${archlinux_snapshot_date}/archlinux-bootstrap-x86_64.tar.zst
-    if ! "$JINX_CACHE_DIR/b2sum" "$JINX_CACHE_DIR/arch-root.tar.zst" | grep "${archlinux_snapshot_b2sum}" >/dev/null 2>&1; then
-        die "Jinx: Failed to verify Arch Linux bootstrap tarball"
+    curl -Lo "$JINX_CACHE_DIR/debian-rootfs.tar.xz" https://github.com/mintsuki/debian-rootfs/releases/download/${debian_snapshot}/debian-rootfs-${debian_architecture}.tar.xz
+    if ! "$JINX_CACHE_DIR/b2sum" "$JINX_CACHE_DIR/debian-rootfs.tar.xz" | grep "${debian_rootfs_b2sum}" >/dev/null 2>&1; then
+        die "Jinx: Failed to verify Debian rootfs tarball"
     fi
-    ( cd "$JINX_CACHE_DIR" && zstdcat arch-root.tar.zst | bsdtar -xf - )
-    rm "$JINX_CACHE_DIR/arch-root.tar.zst"
+    ( cd "$JINX_CACHE_DIR" && xzcat debian-rootfs.tar.xz | bsdtar -xf - )
+    rm "$JINX_CACHE_DIR/debian-rootfs.tar.xz"
     make_dir "$JINX_CACHE_DIR/sets"
-    mv "$JINX_CACHE_DIR/root.x86_64" "$JINX_CACHE_DIR/sets/.image"
+    mv "$JINX_CACHE_DIR/debian-rootfs-${debian_architecture}" "$JINX_CACHE_DIR/sets/.image"
 
-    echo "Server = https://archive.archlinux.org/repos/${archlinux_snapshot_repo_date}/\$repo/os/\$arch" > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
     echo 'en_US.UTF-8 UTF-8' > "$JINX_CACHE_DIR/sets/.image/etc/locale.gen"
-    make_dir "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
+    echo 'APT::Install-Suggests "0";
+APT::Install-Recommends "0";
+APT::Sandbox::User "root";' >> "$JINX_CACHE_DIR/sets/.image/etc/apt/apt.conf"
+
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" apt-get update
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" apt-get install -y locales
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" locale-gen
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --init
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --populate archlinux
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Sy archlinux-keyring
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -S pacman pacman-mirrorlist
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Syu
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" sed -i "s/ check / !check /g" /etc/makepkg.conf
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j${parallelism}\"/g" /etc/makepkg.conf
 
     # Fix permissions of files
     for f in $(find "$JINX_CACHE_DIR/sets/.image" -perm 000 2>/dev/null); do
         chmod 755 "$f"
     done
 
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S bison diffutils docbook-xsl flex gettext inetutils libtool libxslt m4 make patch perl python texinfo w3m which xmlto
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" apt-get install -y autopoint bash bison bzip2 curl diffutils docbook-xsl doxygen file flex gettext xsltproc m4 make patch perl python3 texinfo w3m which xmlto xz-utils
 
     # Build xstow
     XSTOW_BUILDENV="$JINX_CACHE_DIR/xstow_buildenv"
     cp -Pprf "$JINX_CACHE_DIR/sets/.image/." "${XSTOW_BUILDENV}/"
     curl -Lo "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}.tar.gz" https://github.com/majorkingleo/xstow/releases/download/${XSTOW_VERSION}/xstow-${XSTOW_VERSION}.tar.gz
     ( cd "${XSTOW_BUILDENV}" && gunzip < xstow-${XSTOW_VERSION}.tar.gz | tar -xf - )
-    run_in_container1 "${XSTOW_BUILDENV}" pacman --needed --noconfirm -S base-devel
+    run_in_container1 "${XSTOW_BUILDENV}" apt-get install -y build-essential
     run_in_container1 "${XSTOW_BUILDENV}" sh -c "cd /xstow-${XSTOW_VERSION} && ./configure LDFLAGS='-static' --enable-static --enable-merge-info --without-curses && make -j${parallelism}"
     mv "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}/src/merge-info" "$JINX_CACHE_DIR/"
     chmod -R 777 "$XSTOW_BUILDENV"
