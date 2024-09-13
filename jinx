@@ -444,10 +444,10 @@ run_in_container() {
             -m"${script}":/jinx:ro \
             -m"${JINX_CONFIG_FILE}":/jinx-config:ro \
             -m"${base_dir}":/base_dir${container_base_dir_ro} \
-            "${shadow_git_dir_base}" \
+            ${shadow_git_dir_base:+"${shadow_git_dir_base}"} \
             -m"${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
             -m"${build_dir}":/build_dir \
-            "${shadow_git_dir_build}" \
+            ${shadow_git_dir_build:+"${shadow_git_dir_build}"} \
             ${unshare_net_flag} \
             --workdir / \
             -- \
@@ -472,10 +472,10 @@ run_in_container() {
             -m"${script}":/jinx:ro \
             -m"${JINX_CONFIG_FILE}":/jinx-config:ro \
             -m"${base_dir}":/base_dir${container_base_dir_ro} \
-            "${shadow_git_dir_base}" \
+            ${shadow_git_dir_base:+"${shadow_git_dir_base}"} \
             -m"${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
             -m"${build_dir}":/build_dir \
-            "${shadow_git_dir_build}" \
+            ${shadow_git_dir_build:+"${shadow_git_dir_build}"} \
             ${unshare_net_flag} \
             --workdir / \
             -- \
