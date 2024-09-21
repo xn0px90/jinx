@@ -491,19 +491,19 @@ destroy_container() {
 
 do_hg_fetch() {
     [ -d "${source_dir}" ] && return
-    hg clone ${clone_url} "${base_dir}"/sources/${name}
-    ( cd "${base_dir}"/sources/${name} && hg up ${tag} )
+    hg clone "${hg_url}" "${base_dir}"/sources/${name}
+    ( cd "${base_dir}"/sources/${name} && hg up "${tag}" )
 }
 
 do_git_fetch() {
     [ -d "${source_dir}" ] && return
     if ! [ -z "${commit}" ]; then
-        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
+        git clone "${git_url}" "${base_dir}"/sources/${name}
         ( cd "${base_dir}"/sources/${name} && git checkout ${commit} )
     elif [ "${shallow}" = "no" ]; then
-        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
+        git clone "${git_url}" --branch="${branch}" "${base_dir}"/sources/${name}
     else
-        git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
+        git clone "${git_url}" --branch="${branch}" --depth=1 "${base_dir}"/sources/${name}
     fi
 }
 
@@ -579,17 +579,13 @@ get_real_source_dir() {
 do_fetch() {
     make_dir "${base_dir}"/sources
 
-    case ${source_method} in
-        git)
-            do_git_fetch
-            ;;
-        mercurial)
-            do_hg_fetch
-            ;;
-        tarball|*)
-            do_tarball_fetch
-            ;;
-    esac
+    if ! [ -z "${git_url}" ]; then
+        do_git_fetch
+    elif ! [ -z "${hg_url}" ]; then
+        do_hg_fetch
+    elif ! [ -z "${tarball_url}" ]; then
+        do_tarball_fetch
+    fi
 }
 
 default_recipe_steps() {
@@ -757,7 +753,7 @@ do_build() {
 
     make_dir "${build_dir}"/builds/${name}
 
-    if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
+    if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${git_url}" ] || ! [ -z "${hg_url}" ] || ! [ -z "${source_dir}" ]; then
         if ! [ -z "${from_source}" ]; then
             version=$(unset version && source_source_recipe ${from_source} && echo "$version")
             source_dir="$(unset source_dir && source_source_recipe ${from_source} && echo "$source_dir")"
@@ -795,7 +791,7 @@ do_package() {
     rm -rf "${dest_dir}"
     make_dir "${dest_dir}"
 
-    if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
+    if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${git_url}" ] || ! [ -z "${hg_url}" ] || ! [ -z "${source_dir}" ]; then
         if ! [ -z "${from_source}" ]; then
             version=$(unset version && source_source_recipe ${from_source} && echo "$version")
             source_dir="$(unset source_dir && source_source_recipe ${from_source} && echo "$source_dir")"
@@ -890,33 +886,23 @@ do_cmd_regenerate() {
         vc_dir_workdir="${tmp}"
         rm -rf "${vc_dir_workdir}"
 
-        case "${source_method}" in
-            git)
-                mv $1-clean/.git "${vc_dir_clean}"
-                mv $1-workdir/.git "${vc_dir_workdir}"
-                ;;
-            mercurial)
-                mv $1-clean/.hg "${vc_dir_clean}"
-                mv $1-workdir/.hg "${vc_dir_workdir}"
-                ;;
-            *)
-                ;;
-        esac
+        if ! [ -z "${git_url}" ]; then
+            mv $1-clean/.git "${vc_dir_clean}"
+            mv $1-workdir/.git "${vc_dir_workdir}"
+        elif ! [ -z "${hg_url}" ]; then
+            mv $1-clean/.hg "${vc_dir_clean}"
+            mv $1-workdir/.hg "${vc_dir_workdir}"
+        fi
 
         git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
 
-        case "${source_method}" in
-            git)
-                mv "${vc_dir_clean}" $1-clean/.git
-                mv "${vc_dir_workdir}" $1-workdir/.git
-                ;;
-            mercurial)
-                mv "${vc_dir_clean}" $1-clean/.hg
-                mv "${vc_dir_workdir}" $1-workdir/.hg
-                ;;
-            *)
-                ;;
-        esac
+        if ! [ -z "${git_url}" ]; then
+            mv "${vc_dir_clean}" $1-clean/.git
+            mv "${vc_dir_workdir}" $1-workdir/.git
+        elif ! [ -z "${hg_url}" ]; then
+            mv "${vc_dir_clean}" $1-clean/.hg
+            mv "${vc_dir_workdir}" $1-workdir/.hg
+        fi
 
         if [ -s "${patch_file}" ]; then
             make_dir "${base_dir}"/patches/$1
@@ -976,7 +962,7 @@ do_pkg() {
             "${script}" internal-source "${from_source}"
     fi
 
-    if ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
+    if ! [ -z "${tarball_url}" ] || ! [ -z "${git_url}" ] || ! [ -z "${hg_url}" ] || ! [ -z "${source_dir}" ]; then
         "${script}" internal-source "${name}"
     fi
 
