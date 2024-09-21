@@ -489,9 +489,25 @@ destroy_container() {
     rm -rf "${container_pkgs}" "${sysroot_dir}"
 }
 
-do_fetch() {
-    make_dir "${base_dir}"/sources
+do_hg_fetch() {
+    [ -d "${source_dir}" ] && return
+    hg clone ${clone_url} "${base_dir}"/sources/${name}
+    ( cd "${base_dir}"/sources/${name} && hg up ${tag} )
+}
 
+do_git_fetch() {
+    [ -d "${source_dir}" ] && return
+    if ! [ -z "${commit}" ]; then
+        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
+        ( cd "${base_dir}"/sources/${name} && git checkout ${commit} )
+    elif [ "${shallow}" = "no" ]; then
+        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
+    else
+        git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
+    fi
+}
+
+do_tarball_fetch() {
     [ -d "${source_dir}" ] && return
 
     tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
@@ -558,6 +574,22 @@ get_real_source_dir() {
         source_dir="${base_dir}"/"${source_dir}"
         is_local_package=true
     fi
+}
+
+do_fetch() {
+    make_dir "${base_dir}"/sources
+
+    case ${source_method} in
+        git)
+            do_git_fetch
+            ;;
+        mercurial)
+            do_hg_fetch
+            ;;
+        tarball|*)
+            do_tarball_fetch
+            ;;
+    esac
 }
 
 default_recipe_steps() {
@@ -850,7 +882,41 @@ do_cmd_regenerate() {
     if ! [ "${is_local_package}" = true ]; then
         cd "${base_dir}"/sources
 
+        # exclude version control dirs
+        make_temp -d
+        vc_dir_clean="${tmp}"
+        rm -rf "${vc_dir_clean}"
+        make_temp -d
+        vc_dir_workdir="${tmp}"
+        rm -rf "${vc_dir_workdir}"
+
+        case "${source_method}" in
+            git)
+                mv $1-clean/.git "${vc_dir_clean}"
+                mv $1-workdir/.git "${vc_dir_workdir}"
+                ;;
+            mercurial)
+                mv $1-clean/.hg "${vc_dir_clean}"
+                mv $1-workdir/.hg "${vc_dir_workdir}"
+                ;;
+            *)
+                ;;
+        esac
+
         git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
+
+        case "${source_method}" in
+            git)
+                mv "${vc_dir_clean}" $1-clean/.git
+                mv "${vc_dir_workdir}" $1-workdir/.git
+                ;;
+            mercurial)
+                mv "${vc_dir_clean}" $1-clean/.hg
+                mv "${vc_dir_workdir}" $1-workdir/.hg
+                ;;
+            *)
+                ;;
+        esac
 
         if [ -s "${patch_file}" ]; then
             make_dir "${base_dir}"/patches/$1
