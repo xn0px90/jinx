@@ -43,9 +43,26 @@ die() {
     exit 1
 }
 
+case "$1" in
+    version|--version)
+        echo "Jinx version $jinx_version"
+        exit 0
+        ;;
+esac
+
 if ! [ "$(uname -s)" = "Linux" ]; then
     die "$0: Jinx only supports running on Linux hosts."
 fi
+
+case "$1" in
+    install)
+        ;;
+    *)
+        if [ "$(id -u)" = "0" ]; then
+            die "$0: Jinx does not support running as root."
+        fi
+        ;;
+esac
 
 debian_snapshot="20240920T023126Z"
 
@@ -102,16 +119,6 @@ make_dir() {
         done
     done
 }
-
-case "$1" in
-    install|sysroot)
-        ;;
-    *)
-        if [ "$(id -u)" = "0" ]; then
-            die "$0: Jinx does not support running as root."
-        fi
-        ;;
-esac
 
 if [ -z "$JINX_PARALLELISM" ]; then
     max_threads_by_mem="$(( ((($(free | awk '/^Mem:/{print $2}') + 1048575) / 1048576) + 1) / 2 ))"
@@ -1862,13 +1869,6 @@ redo_first_use() {
     rm -rf "$JINX_CACHE_DIR"
     first_use
 }
-
-case "$1" in
-    version|--version)
-        echo "Jinx version $jinx_version"
-        exit 0
-        ;;
-esac
 
 if ! [ -f "$JINX_CONFIG_FILE" ]; then
     die "$0: missing Jinx config file '$JINX_CONFIG_FILE'"
