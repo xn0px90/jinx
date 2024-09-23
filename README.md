@@ -19,8 +19,7 @@ Some examples of hobby OSes using Jinx are [Vinix](https://github.com/vlang/vini
 - git
 - grep
 - gzip
-- libarchive (for `bsdtar`)
+- tar
 - procps (for `free`)
 - rsync
-- tar
-- zstd
+- xz
