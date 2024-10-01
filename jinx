@@ -399,7 +399,8 @@ run_in_container() {
     if ( [ "$JINX_NATIVE_MODE" = "yes" ] && [ "$cross_compile" = "yes" ] ) || ( ! [ "$JINX_NATIVE_MODE" = "yes" ] ); then
         make_dir "${imgroot}/sysroot"
 
-        native_mode_mounts=y
+        container_pkgs_native_mount="-m${container_pkgs}:/usr/local:ro"
+        sysroot_native_mount="-m${sysroot_dir}:/sysroot:ro"
 
         run_in_cont_lang=en_US.UTF-8
     else
@@ -427,61 +428,33 @@ run_in_container() {
         shadow_git_dir_base="-m${tmp}:/base_dir/.git"
     fi
 
-    if [ -z "${native_mode_mounts}" ]; then
-        "$JINX_CACHE_DIR/rbrt" \
-            --root "${imgroot}" \
-            --uid $(id -u) \
-            --gid $(id -g) \
-            --env HOME=/root \
-            --env LANG=${run_in_cont_lang} \
-            --env LC_COLLATE=C \
-            --env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin \
-            --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
-            ${run_in_cont_term} \
-            ${run_in_cont_colorterm} \
-            --env JINX_PARALLELISM="$parallelism" \
-            --env JINX_CONFIG_FILE=/jinx-config \
-            --env JINX_SOURCE_DIR=/base_dir \
-            -m"${script}":/jinx:ro \
-            -m"${JINX_CONFIG_FILE}":/jinx-config:ro \
-            -m"${base_dir}":/base_dir${container_base_dir_ro} \
-            ${shadow_git_dir_base:+"${shadow_git_dir_base}"} \
-            -m"${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
-            -m"${build_dir}":/build_dir \
-            ${shadow_git_dir_build:+"${shadow_git_dir_build}"} \
-            ${unshare_net_flag} \
-            --workdir / \
-            -- \
-            /bin/bash -c "cd /build_dir && /bin/bash /jinx $run_in_cont_argvar"
-    else
-        "$JINX_CACHE_DIR/rbrt" \
-            --root "${imgroot}" \
-            --uid $(id -u) \
-            --gid $(id -g) \
-            --env HOME=/root \
-            --env LANG=${run_in_cont_lang} \
-            --env LC_COLLATE=C \
-            --env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin \
-            --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
-            ${run_in_cont_term} \
-            ${run_in_cont_colorterm} \
-            --env JINX_PARALLELISM="$parallelism" \
-            --env JINX_CONFIG_FILE=/jinx-config \
-            --env JINX_SOURCE_DIR=/base_dir \
-            -m"${container_pkgs}":/usr/local:ro \
-            -m"${sysroot_dir}":/sysroot:ro \
-            -m"${script}":/jinx:ro \
-            -m"${JINX_CONFIG_FILE}":/jinx-config:ro \
-            -m"${base_dir}":/base_dir${container_base_dir_ro} \
-            ${shadow_git_dir_base:+"${shadow_git_dir_base}"} \
-            -m"${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
-            -m"${build_dir}":/build_dir \
-            ${shadow_git_dir_build:+"${shadow_git_dir_build}"} \
-            ${unshare_net_flag} \
-            --workdir / \
-            -- \
-            /bin/bash -c "cd /build_dir && /bin/bash /jinx $run_in_cont_argvar"
-    fi
+    "$JINX_CACHE_DIR/rbrt" \
+        --root "${imgroot}" \
+        --uid $(id -u) \
+        --gid $(id -g) \
+        --env HOME=/root \
+        --env LANG=${run_in_cont_lang} \
+        --env LC_COLLATE=C \
+        --env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin \
+        --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
+        ${run_in_cont_term} \
+        ${run_in_cont_colorterm} \
+        --env JINX_PARALLELISM="$parallelism" \
+        --env JINX_CONFIG_FILE=/jinx-config \
+        --env JINX_SOURCE_DIR=/base_dir \
+        ${container_pkgs_native_mount:+"${container_pkgs_native_mount}"} \
+        ${sysroot_native_mount:+"${sysroot_native_mount}"} \
+        -m"${script}":/jinx:ro \
+        -m"${JINX_CONFIG_FILE}":/jinx-config:ro \
+        -m"${base_dir}":/base_dir${container_base_dir_ro} \
+        ${shadow_git_dir_base:+"${shadow_git_dir_base}"} \
+        -m"${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
+        -m"${build_dir}":/build_dir \
+        ${shadow_git_dir_build:+"${shadow_git_dir_build}"} \
+        ${unshare_net_flag} \
+        --workdir / \
+        -- \
+        /bin/bash -c "cd /build_dir && /bin/bash /jinx $run_in_cont_argvar"
 
     rm -rf "${imgroot}/sysroot" "${imgroot}/jinx" "${imgroot}/jinx-config" "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 }
