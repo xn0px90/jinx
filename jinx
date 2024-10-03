@@ -861,6 +861,8 @@ do_source() {
 
     "${script}" internal-precont-patch $1
 
+    [ -f "${base_dir}"/sources/$1.prepared ] && return
+
     cross_compile=yes
     prepare_container
     run_in_container internal-prepare $1
